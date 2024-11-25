@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendário de Eventos</title>
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.10.2/main.min.css' rel='stylesheet' />
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.10.2/main.min.js'></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        #calendar {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .event-form input, .event-form textarea {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+        .event-form button {
+            padding: 10px 15px;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .btn-save {
+            background-color: #4CAF50;
+        }
+        .btn-delete {
+            background-color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div id='calendar'></div>
+
+    <div id="eventModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Adicionar/Editar Evento</h3>
+            <div class="event-form">
+                <input type="hidden" id="eventId">
+                <input type="text" id="eventTitle" placeholder="Título do Evento">
+                <textarea id="eventDescription" placeholder="Descrição do Evento"></textarea>
+                <input type="datetime-local" id="eventStart">
+                <input type="datetime-local" id="eventEnd">
+                <button onclick="saveEvent()" class="btn-save">Salvar Evento</button>
+                <button onclick="deleteEvent()" class="btn-delete" id="deleteButton" style="display:none;">Excluir Evento</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let calendar;
+        const modal = document.getElementById("eventModal");
+        const span = document.getElementsByClassName("close")[0];
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const calendarEl = document.getElementById('calendar');
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                },
+                events: fetchEvents,
+                editable: true,
+                selectable: true,
+                select: function(info) {
+                    openModal();
+                    document.getElementById('eventStart').value = info.startStr.slice(0, 16);
+                    document.getElementById('eventEnd').value = info.endStr.slice(0, 16);
+                },
+                eventClick: function(info) {
+                    openModal(info.event);
+                },
+                eventDrop: function(info) {
+                    updateEvent(info.event);
+                }
+            });
+            calendar.render();
+        });
+
+        span.onclick = closeModal;
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+
+        function openModal(event = null) {
+            modal.style.display = "block";
+            if (event) {
+                document.getElementById('eventId').value = event.id;
+                document.getElementById('eventTitle').value = event.title;
+                document.getElementById('eventDescription').value = event.extendedProps.description || '';
+                document.getElementById('eventStart').value = event.start.toISOString().slice(0, 16);
+                document.getElementById('eventEnd').value = event.end ? event.end.toISOString().slice(0, 16) : event.start.toISOString().slice(0, 16);
+                document.getElementById('deleteButton').style.display = 'inline-block';
+            } else {
+                resetForm();
+                document.getElementById('deleteButton').style.display = 'none';
+            }
+        }
+
+        function closeModal() {
+            modal.style.display = "none";
+            resetForm();
+        }
+
+        function formatDateForBackend(dateString) {
+            const date = new Date(dateString);
+            return date.getFullYear() +
+                '-' + padZero(date.getMonth() + 1) +
+                '-' + padZero(date.getDate()) +
+                ' ' + padZero(date.getHours()) +
+                ':' + padZero(date.getMinutes()) +
+                ':' + padZero(date.getSeconds());
+        }
+
+        function padZero(num) {
+            return num.toString().padStart(2, '0');
+        }
+
+        function fetchEvents(fetchInfo, successCallback, failureCallback) {
+            fetch('http://localhost:8000/events')
+                .then(response => response.json())
+                .then(result => {
+                    console.log('Eventos recebidos:', result);
+                    const events = result.data.map(event => ({
+                        id: event.id,
+                        title: event.title,
+                        description: event.description,
+                        start: new Date(event.start),
+                        end: new Date(event.end)
+                    }));
+                    successCallback(events);
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar eventos:', error);
+                    failureCallback(error);
+                });
+        }
+
+        function saveEvent() {
+            const eventId = document.getElementById('eventId').value;
+            const eventData = {
+                title: document.getElementById('eventTitle').value,
+                description: document.getElementById('eventDescription').value,
+                start: formatDateForBackend(document.getElementById('eventStart').value),
+                end: formatDateForBackend(document.getElementById('eventEnd').value)
+            };
+
+            const url = eventId ? `http://localhost:8000/events/${eventId}` : 'http://localhost:8000/events';
+            const method = eventId ? 'PUT' : 'POST';
+
+            fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 422) {
+                    throw new Error(data.data.errors.join('\n'));
+                }
+                console.log('Evento salvo:', data);
+                calendar.refetchEvents();
+                closeModal();
+            })
+            .catch((error) => {
+                console.error('Erro ao salvar evento:', error);
+                alert('Erro ao salvar evento: ' + error.message);
+            });
+        }
+
+        function updateEvent(event) {
+            const eventData = {
+                title: event.title,
+                description: event.extendedProps.description,
+                start: formatDateForBackend(event.start.toISOString()),
+                end: event.end ? formatDateForBackend(event.end.toISOString()) : formatDateForBackend(event.start.toISOString())
+            };
+
+            fetch(`http://localhost:8000/events/${event.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventData),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 422) {
+                    throw new Error(data.data.errors.join('\n'));
+                }
+                console.log('Evento atualizado:', data);
+            })
+            .catch((error) => {
+                console.error('Erro ao atualizar evento:', error);
+                alert('Erro ao atualizar evento: ' + error.message);
+                event.revert();
+            });
+        }
+
+        function deleteEvent() {
+            const eventId = document.getElementById('eventId').value;
+            if (!eventId) {
+                alert('Nenhum evento selecionado para exclusão');
+                return;
+            }
+
+            if (confirm('Tem certeza que deseja excluir este evento?')) {
+                fetch(`http://localhost:8000/events/${eventId}`, {
+                    method: 'DELETE',
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Evento excluído:', data);
+                    calendar.refetchEvents();
+                    closeModal();
+                })
+                .catch((error) => {
+                    console.error('Erro ao excluir evento:', error);
+                    alert('Erro ao excluir evento: ' + error.message);
+                });
+            }
+        }
+
+        function resetForm() {
+            document.getElementById('eventId').value = '';
+            document.getElementById('eventTitle').value = '';
+            document.getElementById('eventDescription').value = '';
+            document.getElementById('eventStart').value = '';
+            document.getElementById('eventEnd').value = '';
+            document.getElementById('deleteButton').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

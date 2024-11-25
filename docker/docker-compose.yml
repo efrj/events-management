@@ -44,6 +44,16 @@ services:
       - ../backend/database:/docker-entrypoint-initdb.d
     networks:
       - events_network
+  
+  frontend:
+    image: nginx:alpine
+    ports:
+      - "3000:80"
+    volumes:
+      - ../frontend:/usr/share/nginx/html
+    container_name: events_frontend
+    depends_on:
+      - app
 
 networks:
   events_network:
