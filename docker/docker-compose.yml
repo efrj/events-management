@@ -1,0 +1,50 @@
+services:
+  app:
+    build:
+      context: .
+    container_name: events_app
+    restart: unless-stopped
+    working_dir: /var/www/
+    volumes:
+      - ../backend:/var/www
+    networks:
+      - events_network
+    depends_on:
+      - db
+
+  nginx:
+    image: nginx:alpine
+    container_name: events_nginx
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    volumes:
+      - ../backend:/var/www
+      - ./nginx:/etc/nginx/conf.d/
+    networks:
+      - events_network
+    depends_on:
+      - app
+
+  db:
+    image: mysql:8.0
+    container_name: events_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: events_management
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_PASSWORD: 1234
+      MYSQL_USER: user
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    ports:
+      - "3321:3306"
+    volumes:
+      - ./mysql-data:/var/lib/mysql
+      - ../backend/database:/docker-entrypoint-initdb.d
+    networks:
+      - events_network
+
+networks:
+  events_network:
+    driver: bridge
