@@ -1,6 +1,6 @@
 # Sistema de Gerenciamento de Eventos 
 
-Uma demonstração deste projeto está disponível em <a href="https://infozilla.com.br/eventos" target="_blank">https://infozilla.com.br/eventos</a>. 
+Uma demonstração deste projeto está disponível em <a href="http://93.127.211.229:3000">http://93.127.211.229:3000</a>. 
 
 Este projeto é um sistema de gerenciamento de eventos que consiste em uma API RESTful backend desenvolvida em PHP e um frontend simples em HTML/JavaScript.
 
