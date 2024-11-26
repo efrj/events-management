@@ -6,6 +6,8 @@
     <title>Calendário de Eventos</title>
     <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.10.2/main.min.css' rel='stylesheet' />
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.10.2/main.min.js'></script>
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.10.2/locales/pt-br.js'></script>
+
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -95,15 +97,25 @@
         document.addEventListener('DOMContentLoaded', function() {
             const calendarEl = document.getElementById('calendar');
             calendar = new FullCalendar.Calendar(calendarEl, {
+                locale: 'pt-br',
                 initialView: 'dayGridMonth',
                 headerToolbar: {
                     left: 'prev,next today',
                     center: 'title',
                     right: 'dayGridMonth,timeGridWeek,timeGridDay'
                 },
+                buttonText: {
+                    today: 'Hoje',
+                    month: 'Mês',
+                    week: 'Semana',
+                    day: 'Dia'
+                },
                 events: fetchEvents,
                 editable: true,
                 selectable: true,
+                selectMirror: true,
+                dayMaxEvents: true,
+                weekends: true,
                 select: function(info) {
                     openModal();
                     document.getElementById('eventStart').value = info.startStr.slice(0, 16);
